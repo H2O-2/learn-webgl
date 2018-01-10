@@ -39,6 +39,7 @@ Thumbs.db
 # JetBrain #
 ######################
 .idea/
+.vscode/
 
 # package control #
 ######################
