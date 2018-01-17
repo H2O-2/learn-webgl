@@ -11,10 +11,13 @@ var FSHADER_SOURCE =
 '#ifdef GL_ES\n' +
 'precision mediump float;\n' +
 '#endif\n' +
-'uniform sampler2D u_Sampler;\n' +
+'uniform sampler2D u_Sampler0;\n' +
+'uniform sampler2D u_Sampler1;\n' +
 'varying vec2 v_TexCoord;\n' +
 'void main() {\n' +
-'   gl_FragColor = texture2D(u_Sampler, v_TexCoord);\n' +
+'   vec4 color0 = texture2D(u_Sampler0, v_TexCoord);\n' +
+'   vec4 color1 = texture2D(u_Sampler1, v_TexCoord);\n' +
+'   gl_FragColor = color0 / color1;' +
 '}\n';
 
 function main() {
@@ -91,37 +94,54 @@ function initVertexBuffers(gl) {
 }
 
 function initTextures(gl, n) {
-    var texture = gl.createTexture();
-    if (!texture) {
+    var texture0 = gl.createTexture();
+    var texture1 = gl.createTexture();
+    if (!texture0 || !texture1) {
         console.log('Failed to create the texture object');
         return false;
     }
 
     // Get the storage location of u_Sampler
-    var u_Sampler = gl.getUniformLocation(gl.program, 'u_Sampler');
-    if (!u_Sampler) {
+    var u_Sampler0 = gl.getUniformLocation(gl.program, 'u_Sampler0');
+    var u_Sampler1 = gl.getUniformLocation(gl.program, 'u_Sampler1');
+    if (!u_Sampler0 || !u_Sampler1) {
         console.log('Failed to get the storage location of u_Sampler');
         return false;
     }
 
-    var image = new Image();
-    if (!image) {
+    var image0 = new Image();
+    var image1 = new Image();
+    if (!image0 || !image1) {
         console.log('Failed to create the image object');
         return false;
     }
 
-    image.onload = function() {
-        loadTexture(gl, n, texture, u_Sampler, image);
+    image0.onload = function() {
+        loadTexture(gl, n, texture0, u_Sampler0, image0, 0);
     };
-    image.src = 'sky.jpg';
+    image1.onload = function() {
+        loadTexture(gl, n, texture1, u_Sampler1, image1, 1);
+    };
+    image0.src = 'sky.jpg';
+    image1.src = 'circle.gif'
 
     return true;
 }
 
-function loadTexture(gl, n, texture, u_Sampler, image) {
+var g_texUnit0 = false;
+var g_texUnit1 = false;
+
+function loadTexture(gl, n, texture, u_Sampler, image, texUnit) {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1); // Flip the image's y axis
-    // Enable texture unit0
-    gl.activeTexture(gl.TEXTURE0);
+
+    if (texUnit == 0) {
+        gl.activeTexture(gl.TEXTURE0);
+        g_texUnit0 = true;
+    } else {
+        gl.activeTexture(gl.TEXTURE1);
+        g_texUnit1 = true;
+    }
+
     // Bind the texture object to the target
     gl.bindTexture(gl.TEXTURE_2D, texture);
     // Set the texture parameters
@@ -129,8 +149,11 @@ function loadTexture(gl, n, texture, u_Sampler, image) {
     // Set the texture image
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
     // Set the texture unit 0 to the sampler
-    gl.uniform1i(u_Sampler, 0);
+    gl.uniform1i(u_Sampler, texUnit);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, n);
+
+    if (g_texUnit0 && g_texUnit1) {
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, n);
+    }
 }
